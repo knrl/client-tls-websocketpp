@@ -8,7 +8,7 @@ Simple client that connects to binance and gateio ws servers, and gets asks, bid
 * OpenSSL libraries
 * Webscoketpp
 
-## build
+## build & run
 ```
  $ mkdir build && cd build
  $ cmake ..
