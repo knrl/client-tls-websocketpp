@@ -162,7 +162,7 @@ void websocket_endpoint::send_request_loop(std::string message) {
     });
 }
 
-void websocket_endpoint::set_on_message_cb(OnMessageCB message_cb) {
+void websocket_endpoint::setOnMessage_cb(OnMessageCB message_cb) {
     on_message_cb = message_cb;
 }
 

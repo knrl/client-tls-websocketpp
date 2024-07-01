@@ -56,7 +56,7 @@ public:
     int connect(std::string const & uri);
     connection_metadata::ptr get_metadata(int id) const;
     void close(int id, websocketpp::close::status::value code);
-    void set_on_message_cb(OnMessageCB cb);
+    void setOnMessage_cb(OnMessageCB cb);
     void send_request_loop(std::string message);
 
 private:
