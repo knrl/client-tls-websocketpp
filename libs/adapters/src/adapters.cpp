@@ -1,4 +1,5 @@
 #include "adapters.hpp"
+#include <chrono>
 #include <cstring>
 
 /**      BinanceSocket       **/
@@ -20,14 +21,16 @@ BinanceSocket::BinanceSocket(const std::vector<std::string>& symbols, const std:
 
     // create link for all given symbols, example link:
     // this->uri = "wss://stream.binance.com:9443/ws/btcusdt@bookTicker";
-    createUri(uri);
+    std::string mutable_uri = uri;
+    createUri(mutable_uri);
     setOnMessage();
 }
 
-void BinanceSocket::createUri(std::string uri&) {
+void BinanceSocket::createUri(std::string& uri) {
+    this->uri = uri;
     for(auto symbol : this->symbols) {
         transform(symbol.begin(), symbol.end(), symbol.begin(), ::tolower);
-        uri += "/" + symbol + "@bookTicker";
+        this->uri += "/" + symbol + "@bookTicker";
     }
 }
 
@@ -50,10 +53,15 @@ void BinanceSocket::setOnMessage() {
 }
 
 void BinanceSocket::run() {
-    std::thread t1([&]() {
+    running = true;
+    consumer_thread = std::thread([this]() {
         json emptyJSON;
         std::string value;
-        while (buffer.pop(value)) {
+        while (running) {
+            if (!buffer.pop(value)) {
+                std::this_thread::sleep_for(std::chrono::microseconds(100));
+                continue;
+            }
             auto tick = json::parse(value, nullptr, false);
             if (tick.is_discarded()) {
                 continue;
@@ -67,12 +75,19 @@ void BinanceSocket::run() {
 
             this->data[symbol][0]["asks"][0] = data["a"].get<double>();
             this->data[symbol][0]["asks"][1] = data["A"].get<double>();
-            this->data[symbol][0]["bids"][0] = data["b"].get<double>();
-            this->data[symbol][0]["bids"][1] = data["B"].get<double>();
+            this->data[symbol][1]["bids"][0] = data["b"].get<double>();
+            this->data[symbol][1]["bids"][1] = data["B"].get<double>();
         }
     });
 
     ws.connect(this->uri);
+}
+
+BinanceSocket::~BinanceSocket() {
+    running = false;
+    if (consumer_thread.joinable()) {
+        consumer_thread.join();
+    }
 }
 
 /**      GateioCoinWs       **/
@@ -98,7 +113,7 @@ GateioCoinWs::GateioCoinWs(const std::vector<std::string>& symbols, const std::s
     setOnMessage();
 }
 
-std::string GateioCoinWs::createSendMessage() const {
+std::string GateioCoinWs::createSendMessage() {
     std::string symbol_list_str = "[";
     for (const auto& symbol : symbols) {
         symbol_list_str += "\"" + symbol + "\",";
@@ -117,7 +132,7 @@ std::string GateioCoinWs::createSendMessage() const {
     return json_message.dump();
 }
 
-std::vector<BinanceSocket::Dict> GateioCoinWs::getData(const std::string& symbol) const {
+std::vector<GateioCoinWs::Dict> GateioCoinWs::getData(const std::string& symbol) {
     auto it = this->data.find(symbol);
     if (it == this->data.end()) {
         std::cout << symbol << " is not found.\n";
@@ -136,10 +151,15 @@ void GateioCoinWs::setOnMessage() {
 }
 
 void GateioCoinWs::run() {
-    std::thread t1([&]() {
+    running = true;
+    consumer_thread = std::thread([this]() {
         json emptyJSON;
         std::string value;
-        while (buffer.pop(value)) {
+        while (running) {
+            if (!buffer.pop(value)) {
+                std::this_thread::sleep_for(std::chrono::microseconds(100));
+                continue;
+            }
             auto tick = json::parse(value, nullptr, false);
             if (tick.is_discarded()) {
                 continue;
@@ -153,11 +173,18 @@ void GateioCoinWs::run() {
 
             this->data[symbol][0]["asks"][0] = data["a"].get<double>();
             this->data[symbol][0]["asks"][1] = data["A"].get<double>();
-            this->data[symbol][0]["bids"][0] = data["b"].get<double>();
-            this->data[symbol][0]["bids"][1] = data["B"].get<double>();
+            this->data[symbol][1]["bids"][0] = data["b"].get<double>();
+            this->data[symbol][1]["bids"][1] = data["B"].get<double>();
         }
     });
 
     ws.connect(this->uri);
     ws.send_request_loop(this->message);
+}
+
+GateioCoinWs::~GateioCoinWs() {
+    running = false;
+    if (consumer_thread.joinable()) {
+        consumer_thread.join();
+    }
 }

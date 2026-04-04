@@ -11,5 +11,5 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 
 target_compile_options(${PROJECT_NAME} PRIVATE 
         -std=c++2a)
-target_link_options(${PROJECT_NAME} PRIVATE 
-        -pthread -lboost_system -lboost_random -lboost_thread -lssl -lcrypto -ldl)
+target_link_options(${PROJECT_NAME} PRIVATE
+        -pthread -ldl)

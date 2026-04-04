@@ -1,3 +1,6 @@
+#ifndef RINGBUFFER__HPP
+#define RINGBUFFER__HPP
+
 #include <boost/atomic.hpp>
 
 template<typename T, size_t Size>
@@ -32,3 +35,5 @@ private:
     T ring_[Size];
     boost::atomic<size_t> head_, tail_;
 };
+
+#endif // RINGBUFFER__HPP

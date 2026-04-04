@@ -1,14 +1,20 @@
+#ifndef WS__HPP
+#define WS__HPP
+
 #include <websocketpp/client.hpp>
 #include <websocketpp/config/asio_client.hpp>
 
 #include <websocketpp/common/thread.hpp>
 #include <websocketpp/common/memory.hpp>
 
+#include <atomic>
 #include <cstdlib>
 #include <iostream>
 #include <map>
+#include <sstream>
 #include <string>
 #include <vector>
+#include <functional>
 
 #include "json.hpp"
 
@@ -48,7 +54,7 @@ private:
 
 class websocket_endpoint {
 public:
-    using OnMessageCB = std::function<void(json j)>;
+    using OnMessageCB = std::function<void(std::string j)>;
 
     websocket_endpoint ();
     ~websocket_endpoint();
@@ -64,8 +70,12 @@ private:
 
     client m_endpoint;
     websocketpp::lib::shared_ptr<websocketpp::lib::thread> m_thread;
+    std::thread m_send_thread;
+    std::atomic<bool> m_sending{false};
     OnMessageCB on_message_cb;
     con_list m_connection_list;
     int m_next_id;
 };
 } // namespace websocket
+
+#endif // WS__HPP

@@ -3,10 +3,13 @@
 
 #include "ws.hpp"
 #include "ringbuffer.hpp"
+#include <thread>
+#include <atomic>
 
 class BinanceSocket {
 public:
     explicit BinanceSocket(const std::vector<std::string>& symbols, const std::string& uri);
+    ~BinanceSocket();
     using Dict = std::map<std::string, std::vector<double>>; // "asks" : {1,1}
     std::vector<Dict> getData(const std::string&);           // returns {"asks" : {1,1}, "bids" : {1,1}}
     void createUri(std::string& uri);
@@ -22,6 +25,9 @@ private:
     websocket::websocket_endpoint ws;
     std::string uri{};
 
+    std::thread consumer_thread;
+    std::atomic<bool> running{false};
+
     static const uint32_t BUFFER_SIZE = 64;
     ringbuffer<std::string, BUFFER_SIZE> buffer;
 };
@@ -29,6 +35,7 @@ private:
 class GateioCoinWs {
 public:
     explicit GateioCoinWs(const std::vector<std::string>& symbols, const std::string& uri);
+    ~GateioCoinWs();
     using Dict = std::map<std::string, std::vector<double>>; // "asks" : {1,1}
     std::vector<Dict> getData(const std::string&);                  // returns {"asks" : {1,1}, "bids" : {1,1}}
     std::string createSendMessage();
@@ -45,6 +52,9 @@ private:
     std::string uri{};
 
     std::string message{};
+    std::thread consumer_thread;
+    std::atomic<bool> running{false};
+
     static const uint32_t BUFFER_SIZE = 64;
     ringbuffer<std::string, BUFFER_SIZE> buffer;
 };

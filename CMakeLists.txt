@@ -5,3 +5,6 @@ set(CMAKE_BUILD_TYPE Debug)
 
 add_subdirectory(app)
 add_subdirectory(libs)
+
+enable_testing()
+add_subdirectory(tests)

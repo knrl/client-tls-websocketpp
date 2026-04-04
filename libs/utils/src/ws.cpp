@@ -1,4 +1,6 @@
 #include "ws.hpp"
+#include <chrono>
+#include <thread>
 
 namespace websocket{
 /**     connection_metadata      **/
@@ -130,8 +132,7 @@ int websocket_endpoint::connect(std::string const & uri) {
     ));
     con->set_message_handler(
         [this](websocketpp::connection_hdl, client::message_ptr msg) {
-          json j = msg->get_raw_payload().c_str();
-          on_message_cb(j);
+          on_message_cb(msg->get_raw_payload());
     });
 
     m_endpoint.connect(con);
@@ -141,8 +142,7 @@ int websocket_endpoint::connect(std::string const & uri) {
 }
 
 void websocket_endpoint::send_request_loop(std::string message) {
-    websocketpp::lib::error_code ec;
-    const uint32_t id{0}; 
+    const uint32_t id{0};
 
     con_list::iterator metadata_it = m_connection_list.find(id);
     if (metadata_it == m_connection_list.end())
@@ -151,13 +151,17 @@ void websocket_endpoint::send_request_loop(std::string message) {
         return;
     }
 
-    std::thread t1([&]() {
-        while (true) {
-            m_endpoint.send(metadata_it->second->get_hdl(), message, websocketpp::frame::opcode::text, ec);
-            if(ec){
+    auto hdl = metadata_it->second->get_hdl();
+    m_sending = true;
+    m_send_thread = std::thread([this, hdl, message]() {
+        while (m_sending) {
+            websocketpp::lib::error_code ec;
+            m_endpoint.send(hdl, message, websocketpp::frame::opcode::text, ec);
+            if (ec) {
                 std::cout << "> Error sending message: " << ec.message() << std::endl;
                 return;
             }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     });
 }
@@ -191,24 +195,31 @@ void websocket_endpoint::close(int id, websocketpp::close::status::value code) {
 }
 
 websocket_endpoint::~websocket_endpoint() {
+    m_sending = false;
+    if (m_send_thread.joinable()) {
+        m_send_thread.join();
+    }
+
     m_endpoint.stop_perpetual();
-    
+
     for (con_list::const_iterator it = m_connection_list.begin(); it != m_connection_list.end(); ++it) {
         if (it->second->get_status() != "Open") {
             // Only close open connections
             continue;
         }
-        
+
         std::cout << "> Closing connection " << it->second->get_id() << std::endl;
-        
+
         websocketpp::lib::error_code ec;
         m_endpoint.close(it->second->get_hdl(), websocketpp::close::status::going_away, "", ec);
         if (ec) {
-            std::cout << "> Error closing connection " << it->second->get_id() << ": "  
+            std::cout << "> Error closing connection " << it->second->get_id() << ": "
                       << ec.message() << std::endl;
         }
     }
-    
-    m_thread->join();
+
+    if (m_thread) {
+        m_thread->join();
+    }
 }
 } // namespace websocket
